@@ -109,7 +109,7 @@ def calculate_result(user_id):
     elif best_animal == 'гепард':
         animal_description += "Гепарды - быстрые и ловкие."
 
-    #  Информация о программе опеки (замените на свою информацию)
+    #  Информация о программе опеки 
     adoption_info = "Хотите помочь зоопарку? Узнайте о программе опеки: [ссылка на программу опеки]"
     adoption_info_md = f"[Узнать больше]({'https://www.example.com/adoption'})" #  Example MD link
 
@@ -132,7 +132,6 @@ def share_result(call):
     #  Сгенерировать текст для публикации (включая ссылку на бота)
     share_text = f"Я прошел викторину и оказался {user_data[call.message.chat.id]['animal']}!  Пройди и ты: t.me/YOUR_BOT_USERNAME" #  Замените YOUR_BOT_USERNAME
     bot.send_message(call.message.chat.id, "Поделитесь этим результатом в своих социальных сетях!\n\n" + share_text)
-    #  В реальном приложении здесь будет интеграция с API социальных сетей.
 
 # Обработка кнопки "Связаться с сотрудником зоопарка"
 @bot.callback_query_handler(func=lambda call: call.data == 'contact')
@@ -140,7 +139,7 @@ def contact_zoo(call):
     #  Переслать результаты викторины сотруднику (замените на свой контакт)
     contact_info = "Свяжитесь с нами по email: info@example.com или по телефону: +7 (495) 123-45-67" # Замените
     bot.send_message(call.message.chat.id, contact_info)
-    #  Здесь нужно добавить логику пересылки результатов (user_data[call.message.chat.id]) на email.
+
 
 # Обработка кнопки "Попробовать еще раз?"
 @bot.callback_query_handler(func=lambda call: call.data == 'restart')
