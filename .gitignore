@@ -1,0 +1,180 @@
+import telebot
+from telebot import types
+
+BOT_TOKEN = '7643885982:AAG90qJtsANYBC-njraghjudKFpf4hbv4zI'
+bot = telebot.TeleBot(BOT_TOKEN)
+
+# Глобальные переменные для хранения состояния пользователя
+user_data = {}
+
+# Вопросы викторины 
+questions = [
+    {
+        'question': "Какая погода вам больше нравится?",
+        'answers': [
+            {'text': "Солнечная и жаркая", 'animal': 'лев', 'points': 2},
+            {'text': "Прохладная и дождливая", 'animal': 'панда', 'points': 1},
+            {'text': "Снежная и морозная", 'animal': 'белый медведь', 'points': 3},
+            {'text': "Умеренная и ветреная", 'animal': 'гепард', 'points': 1},
+        ]
+    },
+    {
+        'question': "Какой ваш любимый вид активности?",
+        'answers': [
+            {'text': "Активные игры и охота", 'animal': 'лев', 'points': 3},
+            {'text': "Спокойное поедание бамбука", 'animal': 'панда', 'points': 2},
+            {'text': "Плавание в холодной воде", 'animal': 'белый медведь', 'points': 3},
+            {'text': "Быстрый бег на большие расстояния", 'animal': 'гепард', 'points': 3},
+        ]
+    },
+    {
+        'question': "Что вы цените больше всего?",
+        'answers': [
+            {'text': "Силу и лидерство", 'animal': 'лев', 'points': 3},
+            {'text': "Мир и спокойствие", 'animal': 'панда', 'points': 2},
+            {'text': "Стойкость и выносливость", 'animal': 'белый медведь', 'points': 3},
+            {'text': "Скорость и ловкость", 'animal': 'гепард', 'points': 3},
+        ]
+    }
+]
+
+# Словарь соответствий животное -> изображение 
+animal_images = {
+    'лев': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/Lion_waiting_in_Namibia.jpg/1200px-Lion_waiting_in_Namibia.jpg',
+    'панда': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/Grosser_Panda.JPG/1200px-Grosser_Panda.JPG',
+    'белый медведь': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Ursus_maritimus_2017-01-25.jpg/1200px-Ursus_maritimus_2017-01-25.jpg',
+    'гепард': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/Cheetah_kruger.jpg/1200px-Cheetah_kruger.jpg',
+}
+
+# Функция для начала викторины
+def start_quiz(message):
+    user_id = message.chat.id
+    user_data[user_id] = {'answers': {}, 'score': {}} # Initialize user data
+    ask_question(user_id, 0)  # Начинаем с первого вопроса
+
+# Функция для отправки вопроса
+def ask_question(user_id, question_index):
+    if question_index < len(questions):
+        question = questions[question_index]['question']
+        answers = questions[question_index]['answers']
+
+        keyboard = types.InlineKeyboardMarkup()
+        for i, answer in enumerate(answers):
+            callback_data = f"question:{question_index}:answer:{i}"
+            button = types.InlineKeyboardButton(text=answer['text'], callback_data=callback_data)
+            keyboard.add(button)
+
+        bot.send_message(user_id, question, reply_markup=keyboard)
+    else:
+        # Викторина завершена, подводим итоги
+        calculate_result(user_id)
+
+# Функция для обработки ответов на вопросы
+@bot.callback_query_handler(func=lambda call: call.data.startswith('question'))
+def answer_query(call):
+    user_id = call.message.chat.id
+    data = call.data.split(':')
+    question_index = int(data[1])
+    answer_index = int(data[3])
+
+    selected_answer = questions[question_index]['answers'][answer_index]
+    animal = selected_answer['animal']
+    points = selected_answer['points']
+
+    if animal not in user_data[user_id]['score']:
+        user_data[user_id]['score'][animal] = 0
+    user_data[user_id]['score'][animal] += points
+
+    # Переходим к следующему вопросу
+    ask_question(user_id, question_index + 1)
+
+
+# Функция для вычисления результата викторины
+def calculate_result(user_id):
+    scores = user_data[user_id]['score']
+    if not scores: #  Handle the case where user abandons mid-quiz
+        bot.send_message(user_id, "Похоже, вы не ответили ни на один вопрос!  Пожалуйста, начните заново.")
+        return
+
+    best_animal = max(scores, key=scores.get)
+
+    # Генерируем описание животного (замените на свои описания)
+    animal_description = f"Вы больше всего похожи на {best_animal}!  "
+    if best_animal == 'лев':
+        animal_description += "Львы - сильные и уверенные лидеры."
+    elif best_animal == 'панда':
+        animal_description += "Панды - милые и миролюбивые существа."
+    elif best_animal == 'белый медведь':
+        animal_description += "Белые медведи - выносливые и стойкие."
+    elif best_animal == 'гепард':
+        animal_description += "Гепарды - быстрые и ловкие."
+
+    #  Информация о программе опеки (замените на свою информацию)
+    adoption_info = "Хотите помочь зоопарку? Узнайте о программе опеки: [ссылка на программу опеки]"
+    adoption_info_md = f"[Узнать больше]({'https://www.example.com/adoption'})" #  Example MD link
+
+    # Отправляем сообщение с результатом
+    bot.send_message(user_id, animal_description)
+    bot.send_photo(user_id, animal_images[best_animal], caption=adoption_info)
+    bot.send_message(user_id, adoption_info_md, parse_mode="Markdown")
+
+    #  Кнопки для социальных сетей (только скелет)
+    keyboard = types.InlineKeyboardMarkup()
+    share_button = types.InlineKeyboardButton(text="Поделиться результатом", callback_data="share")
+    contact_button = types.InlineKeyboardButton(text="Связаться с сотрудником зоопарка", callback_data="contact")
+    restart_button = types.InlineKeyboardButton(text="Попробовать еще раз?", callback_data="restart")
+    keyboard.add(share_button, contact_button, restart_button)
+    bot.send_message(user_id, "Что вы хотите сделать дальше?", reply_markup=keyboard)
+
+# Обработка кнопки "Поделиться результатом"
+@bot.callback_query_handler(func=lambda call: call.data == 'share')
+def share_result(call):
+    #  Сгенерировать текст для публикации (включая ссылку на бота)
+    share_text = f"Я прошел викторину и оказался {user_data[call.message.chat.id]['animal']}!  Пройди и ты: t.me/YOUR_BOT_USERNAME" #  Замените YOUR_BOT_USERNAME
+    bot.send_message(call.message.chat.id, "Поделитесь этим результатом в своих социальных сетях!\n\n" + share_text)
+    #  В реальном приложении здесь будет интеграция с API социальных сетей.
+
+# Обработка кнопки "Связаться с сотрудником зоопарка"
+@bot.callback_query_handler(func=lambda call: call.data == 'contact')
+def contact_zoo(call):
+    #  Переслать результаты викторины сотруднику (замените на свой контакт)
+    contact_info = "Свяжитесь с нами по email: info@example.com или по телефону: +7 (495) 123-45-67" # Замените
+    bot.send_message(call.message.chat.id, contact_info)
+    #  Здесь нужно добавить логику пересылки результатов (user_data[call.message.chat.id]) на email.
+
+# Обработка кнопки "Попробовать еще раз?"
+@bot.callback_query_handler(func=lambda call: call.data == 'restart')
+def restart_quiz(call):
+    start_quiz(call.message)
+
+# Обработка команды /start
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    bot.reply_to(message, "Привет! Этот бот поможет узнать, на какое животное из нашего зоопарка вы больше всего похожи.  Нажмите кнопку ниже, чтобы начать викторину!",
+                 reply_markup=get_start_keyboard()) #  Call the function that creates the start keyboard
+
+def get_start_keyboard():
+    keyboard = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
+    button = types.KeyboardButton(text="Начать викторину")
+    keyboard.add(button)
+    return keyboard
+
+@bot.message_handler(func=lambda message: message.text == "Начать викторину")
+def start_handler(message):
+    start_quiz(message)
+
+#  Обработка обратной связи (пример)
+@bot.message_handler(commands=['feedback'])
+def feedback_handler(message):
+    bot.send_message(message.chat.id, "Пожалуйста, отправьте ваш отзыв в следующем сообщении.  Мы его обязательно учтем!")
+    bot.register_next_step_handler(message, save_feedback)
+
+def save_feedback(message):
+    #  Здесь должна быть логика сохранения отзыва (например, в файл или базу данных).
+    print(f"Получен отзыв от пользователя {message.chat.id}: {message.text}")
+    bot.send_message(message.chat.id, "Спасибо за ваш отзыв!")
+
+# Запуск бота
+if __name__ == '__main__':
+    print("Бот запущен")
+    bot.infinity_polling()
